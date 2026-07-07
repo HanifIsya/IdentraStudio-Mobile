@@ -5,14 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Service extends Model
+class ProjectFile extends Model
 {
     use HasFactory;
 
-    // Tambahkan baris sakti ini:
     protected $fillable = [
-        'nama_layanan',
-        'deskripsi',
-        'harga', // Tambahkan kolom harga ke dalam fillable
+        'project_id',
+        'user_id',
+        'file_name',
+        'file_path',
+        'file_size',
+        'uploaded_by',
+        'file_type',
     ];
 }

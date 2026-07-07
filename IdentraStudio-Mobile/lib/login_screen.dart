@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
 import 'dashboard_screen.dart';
-import 'admin_dashboard_screen.dart'; // <--- Tambahkan import untuk dashboard admin
+import 'admin_dashboard_screen.dart'; // Import untuk dashboard admin
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -18,16 +18,37 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   void _handleLogin() async {
+    if (_emailController.text.isEmpty || _passController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Email dan Password tidak boleh kosong!"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       // 1. Panggil fungsi login dan simpan hasilnya di variabel 'response'
-      final response = await _apiService.login(_emailController.text, _passController.text);
+      final response = await _apiService.login(
+        _emailController.text.trim(), 
+        _passController.text,
+      );
       
       // 2. Ambil data role dari response Laravel
       // Sesuai dengan ApiService kita, role ada di dalam data['user']['role']
       String role = response['user']['role'] ?? 'user';
 
       if (mounted) {
+        // Tampilkan feedback sukses masuk
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Selamat datang kembali, ${response['user']['name'] ?? 'User'}!"),
+            backgroundColor: const Color(0xFFD4AF37), // Aksen Identra
+          ),
+        );
+
         // 3. Logika Percabangan Navigasi berdasarkan Role
         if (role == 'admin') {
           // Jika Admin, arahkan ke Admin Dashboard
@@ -44,13 +65,27 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
-      // Tampilkan pesan error jika login gagal
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Email atau Password salah atau terjadi masalah koneksi!")),
-      );
+      if (mounted) {
+        // Tampilkan pesan error detail dari backend atau masalah koneksi
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passController.dispose();
+    super.dispose();
   }
 
   @override
@@ -63,17 +98,38 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 80),
-            const Text("IDENTRA\nSTUDIO.", 
-              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, height: 1.2)),
+            const Text(
+              "IDENTRA\nSTUDIO.", 
+              style: TextStyle(
+                color: Colors.white, 
+                fontSize: 24, 
+                fontWeight: FontWeight.bold, 
+                height: 1.2,
+              ),
+            ),
             const SizedBox(height: 60),
             const Center(
               child: Column(
                 children: [
-                  Text("Selamat\nDatang", textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold, height: 1.1)),
+                  Text(
+                    "Selamat\nDatang", 
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white, 
+                      fontSize: 36, 
+                      fontWeight: FontWeight.bold, 
+                      height: 1.1,
+                    ),
+                  ),
                   SizedBox(height: 15),
-                  Text("Silahkan masuk ke akun Identra Studio\nAnda.", textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  Text(
+                    "Silahkan masuk ke akun Identra Studio\nAnda.", 
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white70, 
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -95,37 +151,67 @@ class _LoginScreenState extends State<LoginScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 ),
                 child: _isLoading 
-                  ? const CircularProgressIndicator(color: Colors.black)
-                  : const Text("Masuk Sekarang", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.black,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      "Masuk Sekarang", 
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
               ),
             ),
             const SizedBox(height: 15),
             const Align(
               alignment: Alignment.centerRight,
-              child: Text("Lupa password?", style: TextStyle(color: Colors.white38, fontSize: 12)),
+              child: Text(
+                "Lupa password?", 
+                style: TextStyle(color: Colors.white38, fontSize: 12),
+              ),
             ),
             const SizedBox(height: 60),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text("Belum bergabung dengan kami? ", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const Text(
+                  "Belum bergabung dengan kami? ", 
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
                 GestureDetector(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen())),
-                  child: const Text("DAFTAR AKUN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                  onTap: () => Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                  ),
+                  child: const Text(
+                    "DAFTAR AKUN", 
+                    style: TextStyle(
+                      color: Colors.white, 
+                      fontWeight: FontWeight.bold, 
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
               ],
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  // --- Widget Helper untuk Label dan TextField tetap sama ---
+  // --- Widget Helper untuk Label dan TextField ---
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(left: 5, bottom: 8),
-      child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+      child: Text(
+        text, 
+        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+      ),
     );
   }
 
@@ -139,7 +225,10 @@ class _LoginScreenState extends State<LoginScreen> {
         hintStyle: const TextStyle(color: Colors.black26),
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15), 
+          borderSide: BorderSide.none,
+        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       ),
     );

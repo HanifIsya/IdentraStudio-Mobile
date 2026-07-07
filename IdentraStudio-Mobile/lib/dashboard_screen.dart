@@ -4,7 +4,7 @@ import 'services/api_service.dart';
 import 'models/dashboard_model.dart';
 import 'services_screen.dart';
 import 'chats_screen.dart';    // <--- IMPORT BARU
-import 'projects_screen.dart'; // <--- IMPORT BARU
+import 'projects/projects_screen.dart'; // <--- IMPORT BARU
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});

@@ -1,3 +1,5 @@
+// lib/services/api_service.dart
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/service_model.dart';
@@ -5,15 +7,16 @@ import '../models/dashboard_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // Gunakan 10.0.2.2 untuk emulator Android laptop Lenovo LOQ kamu
-  static const String baseUrl = 'http://192.168.215.45:8000/api';
+  // Alamat IP server backend Laravel development Anda
+  static const String baseUrl = 'http://192.168.1.4:8000/api'; 
 
   // Helper untuk Header Dasar
   Map<String, String> get _headers => {
         'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
       };
 
-  // Helper untuk Header dengan Token (Wajib untuk CRUD Admin)
+  // Helper untuk Header dengan Token (Wajib untuk Transaksi & Protected Routes)
   Future<Map<String, String>> _getAuthHeaders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('token');
@@ -23,12 +26,12 @@ class ApiService {
     };
   }
 
-  // 1. Fungsi Mengambil Data Layanan (Bisa diakses User & Admin)
+  // 1. Fungsi Mengambil Data Layanan
   Future<List<ServiceModel>> fetchServices() async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/services'),
-        headers: _headers,
+        headers: {'Accept': 'application/json'},
       );
 
       if (response.statusCode == 200) {
@@ -42,7 +45,7 @@ class ApiService {
     }
   }
 
-  // 2. Fungsi Login (Sekarang Menyimpan ROLE)
+  // 2. Fungsi Login
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final response = await http.post(
@@ -56,10 +59,12 @@ class ApiService {
 
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token'] ?? "");
-        await prefs.setString('user_name', data['user']['name'] ?? "User");
-        
-        // --- LOGIKA BARU: Simpan Role (admin/user) ---
+        await prefs.setString('user_name', data['user']['name'] ?? data['user']['Nama'] ?? "User");
         await prefs.setString('role', data['user']['role'] ?? "user");
+        
+        if (data['user']['User_ID'] != null) {
+          await prefs.setInt('user_id', data['user']['User_ID']);
+        }
 
         return data;
       } else {
@@ -109,20 +114,180 @@ class ApiService {
     }
   }
 
+  // 5. Fungsi Pemrosesan Checkout Keranjang ke Xendit
+  Future<String> processCheckout(List<int> serviceIds) async {
+    try {
+      final authHeaders = await _getAuthHeaders();
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/checkout'),
+        headers: {
+          ...authHeaders,
+          'Content-Type': 'application/json', 
+        },
+        body: jsonEncode({
+          'service_ids': serviceIds, 
+        }),
+      );
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 210) {
+        if (responseData['invoice_url'] != null) {
+          return responseData['invoice_url'].toString();
+        } else {
+          throw Exception('Backend tidak mengembalikan invoice_url pembayaran.');
+        }
+      } else {
+        throw Exception(responseData['message'] ?? 'Gagal memproses checkout di server.');
+      }
+    } catch (e) {
+      throw Exception('Gagal Checkout: $e');
+    }
+  }
+
   // =========================================================
-  // KODE BARU: CRUD SERVICES (KHUSUS ADMIN)
+  // INTEGRASI: MULTI-ROOM PROJECTS & CHAT SYSTEM RIIL
   // =========================================================
 
-  // A. Tambah Layanan Baru
+  // 6. GET: Mengambil Daftar Workspace Project Aktif User
+  Future<List<dynamic>> getProjects() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/projects'),
+        headers: await _getAuthHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        var body = jsonDecode(response.body);
+        return body['data']; 
+      } else {
+        var body = jsonDecode(response.body);
+        throw Exception(body['message'] ?? 'Gagal mengambil data project.');
+      }
+    } catch (e) {
+      throw Exception('Kesalahan Koneksi Project: $e');
+    }
+  }
+
+  // 7. GET: Memuat Riwayat Chat Spesifik Berdasarkan ID Room Project
+  Future<List<dynamic>> getChatMessages(int projectId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/projects/$projectId/messages'),
+        headers: await _getAuthHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        var body = jsonDecode(response.body);
+        return body['data']; 
+      } else {
+        var body = jsonDecode(response.body);
+        throw Exception(body['message'] ?? 'Gagal memuat riwayat obrolan.');
+      }
+    } catch (e) {
+      throw Exception('Kesalahan Koneksi Chat: $e');
+    }
+  }
+
+  // 8. POST: Mengirim Pesan Chat Baru ke Room Project Tertentu
+  Future<dynamic> sendChatMessage(int projectId, String message) async {
+    try {
+      final authHeaders = await _getAuthHeaders();
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/projects/$projectId/messages'),
+        headers: {
+          ...authHeaders,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'message': message,
+        }),
+      );
+
+      var body = jsonDecode(response.body);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return body['data']; 
+      } else {
+        throw Exception(body['message'] ?? 'Gagal mengirim pesan.');
+      }
+    } catch (e) {
+      throw Exception('Kesalahan Pengiriman Chat: $e');
+    }
+  }
+
+  // =========================================================
+  // INTEGRASI: WORKSPACE FILE MANAGEMENT PER PROJECT
+  // =========================================================
+
+  // 9. GET: Mengambil Riwayat File Pendukung/Hasil Akhir Proyek
+  Future<List<dynamic>> getProjectFiles(int projectId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/projects/$projectId/files'),
+        headers: await _getAuthHeaders(),
+      );
+      
+      var body = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return body['data'];
+      } else {
+        throw Exception(body['message'] ?? 'Gagal memuat file proyek.');
+      }
+    } catch (e) {
+      throw Exception('Kesalahan Koneksi File: $e');
+    }
+  }
+
+  // 10. POST: Mengunggah Berkas Fisik (Multipart) ke Server Laravel
+  Future<dynamic> uploadProjectFile(int projectId, String filePath) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      if (token == null) throw Exception('Sesi berakhir, silakan login ulang.');
+
+      // Menggunakan MultipartRequest untuk transmisi berkas biner/fisik
+      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/projects/$projectId/files'));
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      });
+      
+      // Menambahkan file ke dalam field key 'file' sesuai validasi Laravel Controller
+      request.files.add(await http.MultipartFile.fromPath('file', filePath));
+      
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      
+      var body = jsonDecode(response.body);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return body['data'];
+      } else {
+        throw Exception(body['message'] ?? 'Gagal mengunggah berkas ke server.');
+      }
+    } catch (e) {
+      throw Exception('Kesalahan Unggah Berkas: $e');
+    }
+  }
+
+  // 11. Fungsi Logout
+  Future<void> logout() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+  }
+
+  // =========================================================
+  // CRUD SERVICES (KHUSUS ADMIN)
+  // =========================================================
+
   Future<bool> addService(String nama, String deskripsi) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/services'),
         headers: await _getAuthHeaders(),
-        body: {
-          'nama_layanan': nama,
-          'deskripsi': deskripsi,
-        },
+        body: {'nama_layanan': nama, 'deskripsi': deskripsi},
       );
       return response.statusCode == 201;
     } catch (e) {
@@ -130,28 +295,19 @@ class ApiService {
     }
   }
 
-  // B. Update Layanan
   Future<bool> updateService(int id, String nama, String deskripsi) async {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/services/$id'),
         headers: await _getAuthHeaders(),
-        body: {
-          'nama_layanan': nama,
-          'deskripsi': deskripsi,
-        },
+        body: {'nama_layanan': nama, 'deskripsi': deskripsi},
       );
-
-print("LOG UPDATE: ${response.statusCode}");
-    print("LOG BODY: ${response.body}");
-
       return response.statusCode == 200;
     } catch (e) {
       return false;
     }
   }
 
-  // C. Hapus Layanan
   Future<bool> deleteService(int id) async {
     try {
       final response = await http.delete(

@@ -5,7 +5,11 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\TestController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\ServiceController; // <--- Import Controller Baru
+use App\Http\Controllers\Api\ServiceController;
+use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\ProjectController;
+use App\Http\Controllers\Api\MessageController; // <--- 1. IMPORT CONTROLLER CHAT BARU
+use App\Http\Controllers\Api\ProjectFileController;
 
 /*
 |--------------------------------------------------------------------------
@@ -13,10 +17,9 @@ use App\Http\Controllers\Api\ServiceController; // <--- Import Controller Baru
 |--------------------------------------------------------------------------
 */
 Route::get('/cek-koneksi', [TestController::class, 'index']);
-Route::get('/services', [TestController::class, 'getServices']); // User biasa cuma bisa LIHAT
+Route::get('/services', [TestController::class, 'getServices']); 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-
 
 /*
 |--------------------------------------------------------------------------
@@ -33,13 +36,21 @@ Route::middleware('auth:sanctum')->group(function () {
     // Dashboard Data
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
+    // --- RUTE CHECKOUT / PENGORDERAN ---
+    Route::post('/checkout', [OrderController::class, 'store']); 
+
+    // --- RUTE DATA PROJECT MULTI-ROOM ---
+    Route::get('/projects', [ProjectController::class, 'index']); 
+
+    // --- RUTE CHAT ROOM PER PROJECT ---
+    Route::get('/projects/{project_id}/messages', [MessageController::class, 'getMessages']); // <--- 2. AMBIL CHAT
+    Route::post('/projects/{project_id}/messages', [MessageController::class, 'sendMessage']); // <--- 3. KIRIM CHAT
+
+    Route::get('/projects/{project_id}/files', [ProjectFileController::class, 'getFiles']);
+Route::post('/projects/{project_id}/files', [ProjectFileController::class, 'uploadFile']);
+
     // --- CRUD SERVICES UNTUK ADMIN ---
-    // Pintu untuk Menambah layanan baru
     Route::post('/services', [ServiceController::class, 'store']);
-    
-    // Pintu untuk Mengupdate layanan (butuh ID)
     Route::put('/services/{id}', [ServiceController::class, 'update']);
-    
-    // Pintu untuk Menghapus layanan (butuh ID)
     Route::delete('/services/{id}', [ServiceController::class, 'destroy']);
 });

@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Gunakan 10.0.2.2 untuk emulator Android laptop Lenovo LOQ kamu
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  static const String baseUrl = 'http://192.168.215.45:8000/api';
 
   // Helper untuk Header Dasar
   Map<String, String> get _headers => {

@@ -31,6 +31,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => userName = prefs.getString('user_name') ?? "Identra User");
   }
 
+  // -------------------------------------------------------------------------
+  // LOGOUT DIALOG & LOGIC
+  // -------------------------------------------------------------------------
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            "Konfirmasi Logout",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          content: const Text(
+            "Apakah Anda yakin ingin keluar dari akun IdentraStudio?",
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("BATAL", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                await prefs.clear(); // Hapus token & session simpanan
+
+                if (mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text("LOGOUT", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   List<Widget> _getPages() {
     return [
       _buildDashboardContent(), // Indeks 0: Dashboard
@@ -184,10 +228,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37), size: 20),
+          
+          // Tombol Logout User
+          InkWell(
+            onTap: _showLogoutDialog,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withOpacity(0.2), 
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+              ),
+              child: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+            ),
           )
         ],
       ),
@@ -201,7 +255,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // WIDGET SLIDER LAYANAN UNGGULAN (DAPAT DIGESER KE SAMPING)
   Widget _buildHorizontalServicesSlider(Map<String, dynamic>? fallbackOffer) {
-    // Kumpulan data layanan bawaan / dari backend
     final List<Map<String, dynamic>> servicesList = [
       {
         'title': fallbackOffer?['title'] ?? 'Website Design',
@@ -226,14 +279,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ];
 
     return SizedBox(
-      height: 125, // Tinggi wadah slider
+      height: 125,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: servicesList.length,
         itemBuilder: (context, index) {
           final service = servicesList[index];
           return Container(
-            width: 280, // Lebar masing-masing kartu
+            width: 280,
             margin: const EdgeInsets.only(right: 15),
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -320,7 +373,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         children: orders.map((order) {
           return InkWell(
-            onTap: () => setState(() => _selectedIndex = 3), // Pindah ke tab Projects
+            onTap: () => setState(() => _selectedIndex = 3),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
@@ -396,7 +449,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: const TextStyle(fontSize: 11)
             ),
             trailing: InkWell(
-              onTap: () => setState(() => _selectedIndex = 2), // Pindah ke tab Invoices
+              onTap: () => setState(() => _selectedIndex = 2),
               child: const Icon(Icons.chevron_right, color: Colors.black),
             ),
           );

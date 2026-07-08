@@ -12,10 +12,20 @@ class ProjectFile extends Model
     protected $fillable = [
         'project_id',
         'user_id',
+        'uploaded_by',
         'file_name',
+        'file_type', // TAMBAHKAN INI
         'file_path',
         'file_size',
-        'uploaded_by',
-        'file_type',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class, 'project_id');
+    }
 }

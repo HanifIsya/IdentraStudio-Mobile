@@ -55,4 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/services', [ServiceController::class, 'store']);
     Route::put('/services/{id}', [ServiceController::class, 'update']);
     Route::delete('/services/{id}', [ServiceController::class, 'destroy']);
+
+    // UPDATE STATUS & PROGRESS PROJECT (Mendukung PUT dan POST agar bebas dari Error 405)
+    Route::match(['put', 'post'], '/projects/{id}', [ProjectController::class, 'update']);
 });

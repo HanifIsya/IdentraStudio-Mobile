@@ -1,6 +1,8 @@
+// lib/admin/admin_services_screen.dart
+
 import 'package:flutter/material.dart';
-import 'services/api_service.dart';
-import 'models/service_model.dart';
+import '../services/api_service.dart';
+import '../models/service_model.dart';
 
 class AdminServicesScreen extends StatefulWidget {
   const AdminServicesScreen({super.key});
@@ -33,7 +35,7 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
     }
   }
 
-  // Fungsi untuk menampilkan pesan snackbar
+  // Fungsi snackbar
   void _showSnackBar(String msg, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -45,9 +47,8 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
-      // --- PERBAIKAN: Posisi FloatingActionButton agar di atas Bottom Nav ---
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 90.0), 
+        padding: const EdgeInsets.only(bottom: 90.0),
         child: FloatingActionButton(
           backgroundColor: Colors.black,
           onPressed: () => _showFormDialog(null),
@@ -63,7 +64,7 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
                 : _services.isEmpty
                     ? const Center(child: Text("Belum ada layanan."))
                     : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 120), // Padding bawah lebih besar
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
                         itemCount: _services.length,
                         itemBuilder: (context, index) {
                           return _buildServiceAdminCard(_services[index]);
@@ -82,7 +83,7 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
       decoration: const BoxDecoration(
         color: Colors.black,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(35), 
+          bottomLeft: Radius.circular(35),
           bottomRight: Radius.circular(35),
         ),
       ),
@@ -121,6 +122,12 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.namaLayanan, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 2),
+                Text(
+                  "Rp ${item.harga}",
+                  style: const TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 2),
                 Text(item.deskripsi, style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
@@ -138,10 +145,11 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
     );
   }
 
-  // --- DIALOG FORM (CREATE & UPDATE) ---
+  // --- DIALOG FORM (CREATE & UPDATE HARGA) ---
   void _showFormDialog(ServiceModel? service) {
     final nameController = TextEditingController(text: service?.namaLayanan);
     final descController = TextEditingController(text: service?.deskripsi);
+    final priceController = TextEditingController(text: service?.harga ?? "");
 
     showModalBottomSheet(
       context: context,
@@ -161,6 +169,8 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
             const SizedBox(height: 20),
             _buildTextField(nameController, "Service Name"),
             const SizedBox(height: 15),
+            _buildTextField(priceController, "Price (Rp)", isNumeric: true),
+            const SizedBox(height: 15),
             _buildTextField(descController, "Description", maxLines: 3),
             const SizedBox(height: 25),
             SizedBox(
@@ -168,29 +178,39 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
               height: 55,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black, 
+                  backgroundColor: Colors.black,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 ),
                 onPressed: () async {
-                  // --- PERBAIKAN: Inisialisasi success agar tidak Null ---
-                  bool success = false; 
+                  bool success = false;
+
+                  // PERBAIKAN: Parse harga dari String ke double agar cocok dengan parameter ApiService
+                  double hargaParsed = double.tryParse(priceController.text.trim()) ?? 0.0;
 
                   try {
                     if (service == null) {
-                      success = await _apiService.addService(nameController.text, descController.text);
+                      success = await _apiService.addService(
+                        nameController.text.trim(),
+                        descController.text.trim(),
+                        hargaParsed,
+                      );
                     } else {
-                      success = await _apiService.updateService(service.id, nameController.text, descController.text);
+                      success = await _apiService.updateService(
+                        service.id,
+                        nameController.text.trim(),
+                        descController.text.trim(),
+                        hargaParsed,
+                      );
                     }
 
-                    // Cek mounted agar tidak error saat pindah halaman
                     if (!mounted) return;
 
                     if (success) {
-                      Navigator.pop(context); // Tutup Dialog
-                      _loadServices();        // Refresh list
+                      Navigator.pop(context);
+                      _loadServices();
                       _showSnackBar("Berhasil disimpan!", Colors.green);
                     } else {
-                      _showSnackBar("Gagal menyimpan! Cek Log di VS Code.", Colors.red);
+                      _showSnackBar("Gagal menyimpan! Periksa inputan.", Colors.red);
                     }
                   } catch (e) {
                     _showSnackBar("Terjadi kesalahan: $e", Colors.red);
@@ -205,10 +225,11 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint, {int maxLines = 1}) {
+  Widget _buildTextField(TextEditingController controller, String hint, {int maxLines = 1, bool isNumeric = false}) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
+      keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         hintText: hint,
         filled: true,

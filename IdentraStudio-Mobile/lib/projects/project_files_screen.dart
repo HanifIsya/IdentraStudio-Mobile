@@ -1,7 +1,7 @@
 // lib/projects/project_files_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart'; // Import library file_picker
+import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
@@ -41,40 +41,59 @@ class _ProjectFilesScreenState extends State<ProjectFilesScreen> {
   void _fetchProjectFiles() async {
     try {
       var data = await _apiService.getProjectFiles(widget.projectId);
-      setState(() {
-        _files = data;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _files = data;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
-      _showSnackBar(e.toString().replaceAll('Exception: ', ''));
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSnackBar(e.toString().replaceAll('Exception: ', ''));
+      }
     }
   }
 
-  // FUNGSI UTAMA YANG SUDAH DIPERBAIKI SESUAI VERSI FILE_PICKER ANDA
+  // FUNGSI UTAMA PICKER YANG SUDAH DITYESUAIKAN UNTUK FILE_PICKER V8.X.X
   void _handlePickAndUploadFile() async {
     try {
-      // Menggunakan sintaksis versi lama sesuai instruksi eror Anda
-      FilePickerResult? result = await FilePicker.pickFiles(
+      // Menggunakan FilePicker.platform.pickFiles()
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
       );
 
-      // Pada versi lama, terkadang return type-nya adalah FilePickerResult atau Map.
-      // Kita pastikan membaca path dari file yang dipilih dengan aman.
       if (result != null && result.files.single.path != null) {
         setState(() => _isLoading = true);
-        await _apiService.uploadProjectFile(widget.projectId, result.files.single.path!);
-        _showSnackBar('File berhasil diunggah ke proyek!');
-        _fetchProjectFiles(); // Refresh daftar file setelah sukses
+        
+        bool success = await _apiService.uploadProjectFile(
+          widget.projectId, 
+          result.files.single.path!
+        );
+
+        if (success) {
+          _showSnackBar('File berhasil diunggah ke proyek!');
+          _fetchProjectFiles(); // Refresh daftar file
+        } else {
+          setState(() => _isLoading = false);
+          _showSnackBar('Gagal mengunggah file.');
+        }
       }
     } catch (e) {
-      setState(() => _isLoading = false);
-      _showSnackBar('Gagal memilih/mengunggah file: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSnackBar('Gagal memilih/mengunggah file: $e');
+      }
     }
   }
 
-  void _downloadFile(String urlString) async {
+  void _downloadFile(String? urlString) async {
+    if (urlString == null || urlString.isEmpty) {
+      _showSnackBar('Tautan unduhan tidak valid.');
+      return;
+    }
+
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       _showSnackBar('Tidak dapat mengunduh berkas.');
@@ -144,7 +163,10 @@ class _ProjectFilesScreenState extends State<ProjectFilesScreen> {
                         itemCount: _files.length,
                         itemBuilder: (context, index) {
                           final file = _files[index];
-                          final bool isMe = file['uploaded_by'] == 'client';
+                          
+                          // Deteksi apakah file diunggah oleh user aktif
+                          final String uploadedBy = file['uploaded_by']?.toString().toLowerCase() ?? '';
+                          final bool isMe = (uploadedBy == 'client' || uploadedBy == 'user');
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -165,14 +187,14 @@ class _ProjectFilesScreenState extends State<ProjectFilesScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        file['file_name'] ?? '',
+                                        file['file_name'] ?? 'File Asset',
                                         style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '${file['file_size']} • Oleh ${isMe ? 'Saya' : 'Admin'}',
+                                        '${file['file_size'] ?? '0 KB'} • Oleh ${file['uploaded_by'] ?? 'User'}',
                                         style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
                                       ),
                                     ],
@@ -180,7 +202,7 @@ class _ProjectFilesScreenState extends State<ProjectFilesScreen> {
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.download_for_offline_outlined, color: Colors.white60, size: 22),
-                                  onPressed: () => _downloadFile(file['file_path']),
+                                  onPressed: () => _downloadFile(file['file_url'] ?? file['file_path']),
                                 ),
                               ],
                             ),

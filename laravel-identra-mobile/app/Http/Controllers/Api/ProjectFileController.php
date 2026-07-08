@@ -4,70 +4,98 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\ProjectFile;
 use App\Models\Project;
-use Illuminate\Support\Facades\Auth;
+use App\Models\ProjectFile;
 use Illuminate\Support\Facades\Storage;
 
 class ProjectFileController extends Controller
 {
-    // 1. GET: Ambil list file per Project Room
-    public function getFiles($projectId)
+    /**
+     * GET /api/projects/{project_id}/files
+     * Menampilkan daftar file dalam satu project
+     */
+    public function getFiles(Request $request, $project_id)
     {
-        $user = Auth::user();
-        $project = Project::where('id', $projectId)->where('user_id', $user->id)->first();
+        $user = $request->user();
+        $project = Project::find($project_id);
 
         if (!$project) {
-            return response()->json(['message' => 'Akses dilarang.'], 403);
+            return response()->json(['message' => 'Project tidak ditemukan.'], 404);
         }
 
-        $files = ProjectFile::where('project_id', $projectId)->orderBy('created_at', 'desc')->get();
+        // Cek Otorisasi (Admin atau Pemilik Project)
+        if ($user->role !== 'admin' && $user->role !== 'Admin' && $project->user_id !== $user->id) {
+            return response()->json(['message' => 'Akses terlarang.'], 403);
+        }
+
+        $files = ProjectFile::with('user')
+            ->where('project_id', $project_id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($file) {
+                return [
+                    'id' => $file->id,
+                    'project_id' => $file->project_id,
+                    'file_name' => $file->file_name ?? 'file_asset',
+                    'file_url' => asset('storage/' . $file->file_path),
+                    'file_size' => $file->file_size ?? '0 KB',
+                    'uploaded_by' => $file->user->name ?? 'User',
+                    'created_at' => $file->created_at ? $file->created_at->format('d M Y, H:i') : '',
+                ];
+            });
+
         return response()->json(['status' => 'success', 'data' => $files], 200);
     }
 
-    // 2. POST: Unggah file baru ke Project Room
-    public function uploadFile(Request $request, $projectId)
+    /**
+     * POST /api/projects/{project_id}/files
+     * Mengunggah file ke project
+     */
+   public function uploadFile(Request $request, $project_id)
     {
-        $request->validate([
-            'file' => 'required|file|max:20480' // Batasan file max 20MB
-        ]);
-
-        $user = Auth::user();
-        $project = Project::where('id', $projectId)->where('user_id', $user->id)->first();
+        $user = $request->user();
+        $project = Project::find($project_id);
 
         if (!$project) {
-            return response()->json(['message' => 'Gagal mengunggah file.'], 403);
+            return response()->json(['message' => 'Project tidak ditemukan.'], 404);
         }
 
-        if ($request->file('file')->isValid()) {
+        // Check Hak Akses Admin atau Pemilik Project
+        $isAdmin = strtolower($user->role ?? '') === 'admin';
+        if (!$isAdmin && $project->user_id !== $user->id) {
+            return response()->json(['message' => 'Akses terlarang.'], 403);
+        }
+
+        $request->validate([
+            'file' => 'required|file|max:20480',
+        ]);
+
+        if ($request->hasFile('file')) {
             $file = $request->file('file');
-            
-            // Simpan file asli ke folder storage/app/public/project_assets
-            $path = $file->store('project_assets', 'public');
-            $publicUrl = Storage::url($path);
+            $originalName = $file->getClientOriginalName();
+            $fileExtension = strtolower($file->getClientOriginalExtension()); // Ambil ekstensi (e.g. pdf, png)
+            $fileSize = round($file->getSize() / 1024, 1) . ' KB';
+            $path = $file->store('project_files', 'public');
 
-            // Hitung ukuran file dalam bentuk KB/MB yang mudah dibaca
-            $sizeBytes = $file->getSize();
-            $fileSizeFormatted = $sizeBytes >= 1048576 
-                ? number_format($sizeBytes / 1048576, 2) . ' MB' 
-                : number_format($sizeBytes / 1024, 2) . ' KB';
+            $roleUploader = $isAdmin ? 'admin' : 'client';
 
-            $newFile = ProjectFile::create([
-    'project_id' => $projectId,
-    'user_id' => $user->id,
-    'file_name' => $file->getClientOriginalName(),
-    
-    // GUNAKAN HELPER ASSET STORAGE INI:
-    'file_path' => asset('storage/' . $path),
-    
-    'file_size' => $fileSizeFormatted,
-    'uploaded_by' => 'client',
-    'file_type' => $file->getClientOriginalExtension(),
-]);
+            $projectFile = ProjectFile::create([
+                'project_id'  => $project_id,
+                'user_id'     => $user->id,
+                'uploaded_by' => $roleUploader,
+                'file_name'   => $originalName,
+                'file_type'   => $fileExtension, // TAMBAHKAN INI (Mengisi kolom file_type)
+                'file_path'   => $path,
+                'file_size'   => $fileSize,
+            ]);
 
-            return response()->json(['status' => 'success', 'data' => $newFile], 201);
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'File berhasil diunggah!',
+                'data'    => $projectFile->load('user')
+            ], 201);
         }
 
-        return response()->json(['message' => 'File tidak valid.'], 400);
+        return response()->json(['message' => 'File tidak ditemukan.'], 400);
     }
 }

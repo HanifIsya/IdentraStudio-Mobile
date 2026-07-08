@@ -58,10 +58,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
 
       if (isAlreadyInCart) {
         if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('${item.namaLayanan} sudah ada di keranjang Anda!'),
               backgroundColor: Colors.orangeAccent,
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -71,14 +73,17 @@ class _ServicesScreenState extends State<ServicesScreen> {
         _updateCartBadge(); 
 
         if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Berhasil menambahkan ${item.namaLayanan} ke keranjang!'),
               backgroundColor: const Color(0xFFD4AF37), 
+              duration: const Duration(seconds: 3), // Hilang otomatis dalam 3 detik
               action: SnackBarAction(
                 label: 'LIHAT',
                 textColor: Colors.black,
                 onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(); // Hilang saat diklik
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const CartScreen()),
@@ -91,8 +96,13 @@ class _ServicesScreenState extends State<ServicesScreen> {
       }
     } catch (e) {
       if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text('Gagal: $e'), 
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 2),
+          ),
         );
       }
     }
@@ -172,7 +182,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
 }
 
 // ─────────────────────────────────────────────────────────
-// KOMPONEN CUSTOM WIDGET (DAPAT DISESUAIKAN DENGAN DASHBOARD)
+// KOMPONEN CUSTOM WIDGET
 // ─────────────────────────────────────────────────────────
 
 class CustomHeader extends StatelessWidget {
@@ -189,7 +199,6 @@ class CustomHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Ambil inisial nama pertama
     String initial = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : "U";
 
     return Container(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
 import 'dashboard_screen.dart';
-import 'admin_dashboard_screen.dart'; // Import untuk dashboard admin
+import 'admin/admin_dashboard_screen.dart'; // Import untuk dashboard admin
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {

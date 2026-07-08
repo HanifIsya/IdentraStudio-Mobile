@@ -11,16 +11,18 @@ class Message extends Model
 
     protected $fillable = [
         'project_id',
-        'sender_id',
+        'user_id',
+        'sender_id', // Tambahkan ini
         'message',
-        'attachment_url',
     ];
 
-    /**
-     * Relasi ke model User (Mengetahui siapa pengirim pesan ini)
-     */
-    public function sender()
+    public function user()
     {
-        return $this->belongsTo(User::class, 'sender_id');
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class, 'project_id');
     }
 }

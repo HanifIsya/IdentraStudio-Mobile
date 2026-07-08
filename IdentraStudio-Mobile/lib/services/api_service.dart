@@ -150,7 +150,7 @@ class ApiService {
   // INTEGRASI: MULTI-ROOM PROJECTS & CHAT SYSTEM RIIL
   // =========================================================
 
-  // 6. GET: Mengambil Daftar Workspace Project Aktif User
+  // GET: Fetch Semua Projects (Otomatis menyesuaikan Role User vs Admin)
   Future<List<dynamic>> getProjects() async {
     try {
       final response = await http.get(
@@ -160,10 +160,16 @@ class ApiService {
 
       if (response.statusCode == 200) {
         var body = jsonDecode(response.body);
-        return body['data']; 
+        
+        // Cek jika response dibungkus key 'data'
+        if (body is Map && body.containsKey('data')) {
+          return body['data'];
+        } else if (body is List) {
+          return body;
+        }
+        return [];
       } else {
-        var body = jsonDecode(response.body);
-        throw Exception(body['message'] ?? 'Gagal mengambil data project.');
+        throw Exception('Gagal memuat daftar project.');
       }
     } catch (e) {
       throw Exception('Kesalahan Koneksi Project: $e');
@@ -222,53 +228,53 @@ class ApiService {
   // =========================================================
 
   // 9. GET: Mengambil Riwayat File Pendukung/Hasil Akhir Proyek
+  // GET: Fetch File List
   Future<List<dynamic>> getProjectFiles(int projectId) async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/projects/$projectId/files'),
         headers: await _getAuthHeaders(),
       );
-      
-      var body = jsonDecode(response.body);
+
       if (response.statusCode == 200) {
-        return body['data'];
-      } else {
-        throw Exception(body['message'] ?? 'Gagal memuat file proyek.');
+        var body = jsonDecode(response.body);
+        return body['data'] ?? [];
       }
+      return [];
     } catch (e) {
-      throw Exception('Kesalahan Koneksi File: $e');
+      throw Exception('Gagal memuat file: $e');
     }
   }
 
-  // 10. POST: Mengunggah Berkas Fisik (Multipart) ke Server Laravel
-  Future<dynamic> uploadProjectFile(int projectId, String filePath) async {
+  // POST: Upload File via Multipart
+  Future<bool> uploadProjectFile(int projectId, String filePath) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
-      if (token == null) throw Exception('Sesi berakhir, silakan login ulang.');
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/projects/$projectId/files'),
+      );
 
-      // Menggunakan MultipartRequest untuk transmisi berkas biner/fisik
-      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/projects/$projectId/files'));
       request.headers.addAll({
-        'Accept': 'application/json',
         'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
       });
-      
-      // Menambahkan file ke dalam field key 'file' sesuai validasi Laravel Controller
+
       request.files.add(await http.MultipartFile.fromPath('file', filePath));
-      
+
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
-      
-      var body = jsonDecode(response.body);
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        return body['data'];
-      } else {
-        throw Exception(body['message'] ?? 'Gagal mengunggah berkas ke server.');
-      }
+
+      // Cek Log di Debug Console VS Code
+      print("Status Code Upload: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      throw Exception('Kesalahan Unggah Berkas: $e');
+      print("Error Upload: $e");
+      return false;
     }
   }
 
@@ -282,29 +288,47 @@ class ApiService {
   // CRUD SERVICES (KHUSUS ADMIN)
   // =========================================================
 
-  Future<bool> addService(String nama, String deskripsi) async {
+  // Tambah Service Baru (Create)
+  Future<bool> addService(String name, String desc, double harga) async {
     try {
+      final headers = await _getAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+
       final response = await http.post(
         Uri.parse('$baseUrl/services'),
-        headers: await _getAuthHeaders(),
-        body: {'nama_layanan': nama, 'deskripsi': deskripsi},
+        headers: headers,
+        body: jsonEncode({
+          'nama_layanan': name,
+          'deskripsi': desc,
+          'harga': harga,
+        }),
       );
-      return response.statusCode == 201;
+
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      return false;
+      throw Exception('Gagal menambah service: $e');
     }
   }
 
-  Future<bool> updateService(int id, String nama, String deskripsi) async {
+  // Update Service (Edit)
+  Future<bool> updateService(int id, String name, String desc, double harga) async {
     try {
+      final headers = await _getAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+
       final response = await http.put(
         Uri.parse('$baseUrl/services/$id'),
-        headers: await _getAuthHeaders(),
-        body: {'nama_layanan': nama, 'deskripsi': deskripsi},
+        headers: headers,
+        body: jsonEncode({
+          'nama_layanan': name,
+          'deskripsi': desc,
+          'harga': harga,
+        }),
       );
+
       return response.statusCode == 200;
     } catch (e) {
-      return false;
+      throw Exception('Gagal memperbarui service: $e');
     }
   }
 
@@ -337,5 +361,95 @@ class ApiService {
       throw Exception('Kesalahan Koneksi Invoice: $e');
     }
   }
+
+  // Update Status & Progress Project oleh Admin
+  Future<bool> updateProjectStatus(int projectId, String status, int progressPercent) async {
+    try {
+      // 1. Ambil token header dasar
+      final headers = await _getAuthHeaders();
+      
+      // 2. Wajib set header JSON
+      headers['Content-Type'] = 'application/json';
+      headers['Accept'] = 'application/json';
+
+      // 3. Kirim request dengan jsonEncode
+      final response = await http.post(
+        Uri.parse('$baseUrl/projects/$projectId'),
+        headers: headers,
+        body: jsonEncode({
+          '_method': 'PUT',
+          'status': status,
+          'progress_percent': progressPercent,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      } else {
+        var body = jsonDecode(response.body);
+        
+        // Menampilkan pesan error validasi detail jika ada
+        if (body['errors'] != null) {
+          throw Exception('Validasi Gagal: ${body['errors']}');
+        }
+        throw Exception(body['message'] ?? 'Gagal memperbarui status (${response.statusCode})');
+      }
+    } catch (e) {
+      throw Exception('Kesalahan Koneksi Update Project: $e');
+    }
+  }
+
+  // GET: Mengambil daftar pesan room chat berdasarkan projectId
+  Future<List<dynamic>> getProjectMessages(int projectId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/projects/$projectId/messages'),
+        headers: await _getAuthHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        var body = jsonDecode(response.body);
+        if (body is Map && body.containsKey('data')) {
+          return body['data'];
+        } else if (body is List) {
+          return body;
+        }
+        return [];
+      } else {
+        throw Exception('Gagal memuat pesan chat (${response.statusCode})');
+      }
+    } catch (e) {
+      throw Exception('Kesalahan Koneksi Chat: $e');
+    }
+  }
+
+  // POST: Mengirim pesan baru ke room chat
+  Future<bool> sendProjectMessage(int projectId, String message) async {
+    try {
+      final headers = await _getAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+      headers['Accept'] = 'application/json';
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/projects/$projectId/messages'),
+        headers: headers,
+        body: jsonEncode({
+          'message': message,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      } else {
+        var body = jsonDecode(response.body);
+        throw Exception(body['message'] ?? 'Gagal mengirim pesan');
+      }
+    } catch (e) {
+      throw Exception('Kesalahan Pengiriman Chat: $e');
+    }
+  }
+
+  
+  
 
 }

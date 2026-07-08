@@ -43,7 +43,7 @@ class ProjectFileController extends Controller
             $file = $request->file('file');
             
             // Simpan file asli ke folder storage/app/public/project_assets
-            $path = $file->store('public/project_assets');
+            $path = $file->store('project_assets', 'public');
             $publicUrl = Storage::url($path);
 
             // Hitung ukuran file dalam bentuk KB/MB yang mudah dibaca
@@ -53,14 +53,17 @@ class ProjectFileController extends Controller
                 : number_format($sizeBytes / 1024, 2) . ' KB';
 
             $newFile = ProjectFile::create([
-                'project_id' => $projectId,
-                'user_id' => $user->id,
-                'file_name' => $file->getClientOriginalName(),
-                'file_path' => url($publicUrl),
-                'file_size' => $fileSizeFormatted,
-                'uploaded_by' => 'client',
-                'file_type' => $file->getClientOriginalExtension(),
-            ]);
+    'project_id' => $projectId,
+    'user_id' => $user->id,
+    'file_name' => $file->getClientOriginalName(),
+    
+    // GUNAKAN HELPER ASSET STORAGE INI:
+    'file_path' => asset('storage/' . $path),
+    
+    'file_size' => $fileSizeFormatted,
+    'uploaded_by' => 'client',
+    'file_type' => $file->getClientOriginalExtension(),
+]);
 
             return response()->json(['status' => 'success', 'data' => $newFile], 201);
         }

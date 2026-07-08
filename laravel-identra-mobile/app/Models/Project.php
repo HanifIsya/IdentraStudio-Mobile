@@ -32,4 +32,20 @@ class Project extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    /**
+     * Relasi ke model Message (Satu project memiliki banyak pesan chat)
+     */
+    public function messages()
+    {
+        return $this->hasMany(Message::class, 'project_id');
+    }
+
+    /**
+     * Relasi ke model ProjectFile (Satu project memiliki banyak berkas/aset)
+     */
+    public function files()
+    {
+        return $this->hasMany(ProjectFile::class, 'project_id');
+    }
 }

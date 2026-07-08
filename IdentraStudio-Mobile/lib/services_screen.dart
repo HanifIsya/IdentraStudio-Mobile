@@ -1,7 +1,9 @@
+// lib/services_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/service_model.dart'; // Jalur relatif aman ke folder model
-import '../services/api_service.dart'; // Sesuaikan jika menggunakan api_services.dart tanpa 's'
+import '../models/service_model.dart';
+import '../services/api_service.dart';
 import '../services/cart_screen.dart'; 
 import 'dart:convert';
 
@@ -170,7 +172,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
 }
 
 // ─────────────────────────────────────────────────────────
-// KOMPONEN CUSTOM WIDGET 
+// KOMPONEN CUSTOM WIDGET (DAPAT DISESUAIKAN DENGAN DASHBOARD)
 // ─────────────────────────────────────────────────────────
 
 class CustomHeader extends StatelessWidget {
@@ -187,13 +189,16 @@ class CustomHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Ambil inisial nama pertama
+    String initial = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : "U";
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
+      padding: const EdgeInsets.fromLTRB(25, 60, 25, 30),
       decoration: const BoxDecoration(
         color: Colors.black,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          bottomLeft: Radius.circular(35),
+          bottomRight: Radius.circular(35),
         ),
       ),
       child: Row(
@@ -201,17 +206,31 @@ class CustomHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 25,
-                backgroundColor: Color(0xFFE8DEFF),
-                child: Text("HI", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                backgroundColor: const Color(0xFFD4AF37),
+                child: Text(
+                  initial, 
+                  style: const TextStyle(
+                    color: Colors.black, 
+                    fontWeight: FontWeight.bold, 
+                    fontSize: 18
+                  )
+                ),
               ),
               const SizedBox(width: 15),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("User", style: TextStyle(color: Colors.white70, fontSize: 14)),
-                  Text(name, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text("Selamat Datang,", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text(
+                    name, 
+                    style: const TextStyle(
+                      color: Colors.white, 
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold
+                    )
+                  ),
                 ],
               ),
             ],
@@ -220,7 +239,7 @@ class CustomHeader extends StatelessWidget {
             alignment: Alignment.center,
             children: [
               IconButton(
-                icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 28),
+                icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 26),
                 onPressed: onCartPressed,
               ),
               if (badgeCount > 0)
@@ -265,7 +284,7 @@ class CustomSearchBar extends StatelessWidget {
           decoration: const InputDecoration(
             border: InputBorder.none,
             icon: Icon(Icons.search, color: Colors.black54),
-            hintText: "Search Services....",
+            hintText: "Search Services...",
           ),
         ),
       ),
@@ -283,7 +302,6 @@ class ServiceCard extends StatelessWidget {
     required this.onOrderPressed,
   });
 
-  // PERBAIKAN: Menghilangkan teks "Hubungi Admin" agar nilai asli kalkulasi tetap terjaga
   String _formatRupiah(String hargaStr) {
     try {
       double value = double.parse(hargaStr);

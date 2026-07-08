@@ -1,10 +1,12 @@
+// lib/dashboard_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_service.dart';
 import 'models/dashboard_model.dart';
 import 'services_screen.dart';
-import 'chats_screen.dart';    // <--- IMPORT BARU
-import 'projects/projects_screen.dart'; // <--- IMPORT BARU
+import 'invoices/invoices_screen.dart';
+import 'projects/projects_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -29,13 +31,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => userName = prefs.getString('user_name') ?? "Identra User");
   }
 
-  // List semua halaman yang sudah terintegrasi
   List<Widget> _getPages() {
     return [
       _buildDashboardContent(), // Indeks 0: Dashboard
-      const ServicesScreen(),   // Indeks 1: Services
-      const ChatsScreen(),      // Indeks 2: Chats (Sudah Aktif)
-      const ProjectsScreen(),   // Indeks 3: Projects (Sudah Aktif)
+      const ServicesScreen(),   // Indeks 1: Services Catalog
+      const InvoicesScreen(),   // Indeks 2: Invoices
+      const ProjectsScreen(),   // Indeks 3: Projects Workspace
     ];
   }
 
@@ -45,12 +46,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: const Color(0xFFEFEFEF),
       body: Stack(
         children: [
-          // Menampilkan halaman sesuai menu yang diklik
           IndexedStack(
             index: _selectedIndex,
             children: _getPages(),
           ),
-          
           Align(
             alignment: Alignment.bottomCenter,
             child: _buildBottomNav(),
@@ -68,33 +67,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
       future: _apiService.fetchDashboardData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Colors.black));
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.only(top: 100),
+              child: CircularProgressIndicator(color: Colors.black),
+            ),
+          );
         } else if (snapshot.hasError) {
-          return Center(child: Text("Error: ${snapshot.error}"));
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Gagal memuat data: ${snapshot.error}",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 15),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text("Coba Lagi"),
+                  )
+                ],
+              ),
+            ),
+          );
         }
 
         final data = snapshot.data!;
 
         return SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(userName),
+              
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _sectionTitle("Chat"),
-                    _buildChatTile(data.chat),
+                    // =========================================================
+                    // SECTION 1: EKSPLORASI LAYANAN (BISA DIGESER HORIZONTAL)
+                    // =========================================================
+                    _sectionTitle("Layanan Unggulan"),
+                    _buildHorizontalServicesSlider(data.bestOffer),
                     const SizedBox(height: 25),
-                    _sectionTitle("Order Service"),
-                    _buildOrderCard(data.orders),
+
+                    // =========================================================
+                    // SECTION 2: PROJECT WORKSPACE AKTIF
+                    // =========================================================
+                    _sectionTitle("Project Workspace Aktif"),
+                    _buildActiveProjectsCard(data.orders),
                     const SizedBox(height: 25),
-                    _buildBestOfferCard(data.bestOffer),
-                    const SizedBox(height: 25),
-                    _sectionTitle("Transaction History"),
+
+                    // =========================================================
+                    // SECTION 3: RIWAYAT TRANSAKSI TERBARU
+                    // =========================================================
+                    _sectionTitle("Riwayat Transaksi Terbaru"),
                     _buildTransactionCard(data.transactions),
-                    const SizedBox(height: 120),
+                    
+                    const SizedBox(height: 120), // Spacing bottom nav
                   ],
                 ),
               ),
@@ -110,28 +147,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // -------------------------------------------------------------------------
 
   Widget _buildHeader(String name) {
+    String initial = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : "U";
+
     return Container(
       padding: const EdgeInsets.fromLTRB(25, 60, 25, 30),
       decoration: const BoxDecoration(
         color: Colors.black,
-        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(35), bottomRight: Radius.circular(35)),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(35), 
+          bottomRight: Radius.circular(35)
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 25,
-                backgroundColor: Color(0xFFE8DEFF),
-                child: Text("HI", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                backgroundColor: const Color(0xFFD4AF37),
+                child: Text(
+                  initial, 
+                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)
+                ),
               ),
               const SizedBox(width: 15),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("User", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                  Text(name, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text("Selamat Datang,", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text(
+                    name, 
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)
+                  ),
                 ],
               ),
             ],
@@ -139,7 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.bar_chart, color: Colors.white, size: 20),
+            child: const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37), size: 20),
           )
         ],
       ),
@@ -148,122 +196,232 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _sectionTitle(String title) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
-    child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+    child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.3)),
   );
 
-  Widget _buildChatTile(Map? chat) {
-    if (chat == null) return const Text("No Chat Data");
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: const CircleAvatar(backgroundColor: Color(0xFFE8DEFF), child: Text("ML")),
-        title: Text(chat['sender_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(chat['last_message'], maxLines: 1, overflow: TextOverflow.ellipsis),
-        trailing: const Text("10:45 AM >", style: TextStyle(fontSize: 11, color: Colors.grey)),
+  // WIDGET SLIDER LAYANAN UNGGULAN (DAPAT DIGESER KE SAMPING)
+  Widget _buildHorizontalServicesSlider(Map<String, dynamic>? fallbackOffer) {
+    // Kumpulan data layanan bawaan / dari backend
+    final List<Map<String, dynamic>> servicesList = [
+      {
+        'title': fallbackOffer?['title'] ?? 'Website Design',
+        'description': fallbackOffer?['description'] ?? 'Desain website modern, responsif & profesional.',
+        'icon': Icons.web_rounded,
+      },
+      {
+        'title': 'Mobile App Development',
+        'description': 'Aplikasi iOS & Android berperforma tinggi.',
+        'icon': Icons.phone_android_rounded,
+      },
+      {
+        'title': 'UI/UX Brand Redesign',
+        'description': 'Tingkatkan estetika & retensi pengguna produk Anda.',
+        'icon': Icons.palette_outlined,
+      },
+      {
+        'title': 'Cloud & API Integration',
+        'description': 'Integrasi backend & arsitektur sistem skala besar.',
+        'icon': Icons.cloud_done_outlined,
+      },
+    ];
+
+    return SizedBox(
+      height: 125, // Tinggi wadah slider
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: servicesList.length,
+        itemBuilder: (context, index) {
+          final service = servicesList[index];
+          return Container(
+            width: 280, // Lebar masing-masing kartu
+            margin: const EdgeInsets.only(right: 15),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 55,
+                  height: 55,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD4AF37).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(
+                    service['icon'] as IconData,
+                    color: const Color(0xFFD4AF37),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        service['title'].toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        service['description'].toString(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 10,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildOrderCard(List orders) {
+  // KARTU WORKSPACE PROJECT AKTIF
+  Widget _buildActiveProjectsCard(List orders) {
+    if (orders.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        child: const Text(
+          "Belum ada project aktif. Silakan pesan layanan di menu Services.",
+          style: TextStyle(color: Colors.grey, fontSize: 13),
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25)),
       child: Column(
-        children: orders.map((order) => Padding(
-          padding: const EdgeInsets.only(bottom: 15),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+        children: orders.map((order) {
+          return InkWell(
+            onTap: () => setState(() => _selectedIndex = 3), // Pindah ke tab Projects
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Icon(Icons.folder_open_outlined, size: 28),
-                  const SizedBox(width: 12),
-                  Text(order['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F5F5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.folder_open_outlined, color: Colors.black, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            order['title'] ?? 'Project Service', 
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)
+                          ),
+                          Text(
+                            "Status: ${order['status'] ?? 'Active'}", 
+                            style: const TextStyle(color: Colors.grey, fontSize: 11)
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.grey),
                 ],
               ),
-              Text("\$ ${order['price']} >", style: const TextStyle(fontWeight: FontWeight.bold)),
-            ],
-          ),
-        )).toList(),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildBestOfferCard(Map? offer) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(30)),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Best Offers!", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-              const Text("Sale end in 0:39:40", style: TextStyle(color: Colors.white70, fontSize: 10)),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Container(
-                width: 100, height: 100,
-                decoration: BoxDecoration(color: const Color(0xFFE5B994), borderRadius: BorderRadius.circular(20)),
-                child: const Icon(Icons.videocam_outlined, size: 40),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(offer?['title'] ?? "Premium Pack", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    const Text("Film Production", style: TextStyle(color: Colors.white60, fontSize: 12)),
-                    const Text("\$ 99", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              )
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
+  // RIWAYAT TRANSAKSI REAL
   Widget _buildTransactionCard(List transactions) {
+    if (transactions.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        child: const Text(
+          "Belum ada riwayat transaksi.",
+          style: TextStyle(color: Colors.grey, fontSize: 13),
+        ),
+      );
+    }
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25)),
       child: Column(
-        children: transactions.map((tx) => ListTile(
-          leading: const Icon(Icons.receipt_long),
-          title: Text(tx['invoice_number'], style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text(tx['title']),
-          trailing: const Icon(Icons.chevron_right),
-        )).toList(),
+        children: transactions.map((tx) {
+          return ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            leading: const CircleAvatar(
+              backgroundColor: Color(0xFFF5F5F5),
+              child: Icon(Icons.receipt_long_outlined, color: Colors.black, size: 20),
+            ),
+            title: Text(
+              tx['invoice_number'] ?? tx['external_id'] ?? 'INV-UNKNOWN', 
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)
+            ),
+            subtitle: Text(
+              tx['title'] ?? 'Pembayaran Layanan', 
+              style: const TextStyle(fontSize: 11)
+            ),
+            trailing: InkWell(
+              onTap: () => setState(() => _selectedIndex = 2), // Pindah ke tab Invoices
+              child: const Icon(Icons.chevron_right, color: Colors.black),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  // -------------------------------------------------------------------------
   // LOGIKA BOTTOM NAV
-  // -------------------------------------------------------------------------
   Widget _buildBottomNav() {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 25),
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF2D2D2D), 
+        color: const Color(0xFF1A1A1A), 
         borderRadius: BorderRadius.circular(35),
-        boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4))],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _navItem(Icons.grid_view_rounded, "DASHBOARD", 0),
           _navItem(Icons.shopping_bag_outlined, "SERVICES", 1),
-          _navItem(Icons.chat_bubble_outline, "CHATS", 2),
-          _navItem(Icons.check_box_outlined, "PROJECTS", 3),
+          _navItem(Icons.receipt_long_outlined, "INVOICES", 2),
+          _navItem(Icons.work_outline, "PROJECTS", 3),
         ],
       ),
     );
@@ -280,9 +438,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: isActive ? Colors.white : Colors.white38, size: 24),
+            Icon(icon, color: isActive ? const Color(0xFFD4AF37) : Colors.white38, size: 22),
             const SizedBox(height: 4),
-            Text(label, style: TextStyle(color: isActive ? Colors.white : Colors.white38, fontSize: 9, fontWeight: FontWeight.bold)),
+            Text(
+              label, 
+              style: TextStyle(
+                color: isActive ? const Color(0xFFD4AF37) : Colors.white38, 
+                fontSize: 9, 
+                fontWeight: FontWeight.bold
+              )
+            ),
           ],
         ),
       ),

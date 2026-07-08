@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Alamat IP server backend Laravel development Anda
-  static const String baseUrl = 'http://192.168.1.4:8000/api'; 
+  static const String baseUrl = 'http://10.0.2.2:8000/api'; 
 
   // Helper untuk Header Dasar
   Map<String, String> get _headers => {
@@ -319,4 +319,23 @@ class ApiService {
       return false;
     }
   }
+
+  Future<List<dynamic>> getInvoices() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/invoices'),
+        headers: await _getAuthHeaders(),
+      );
+
+      var body = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return body['data'];
+      } else {
+        throw Exception(body['message'] ?? 'Gagal memuat riwayat invoice.');
+      }
+    } catch (e) {
+      throw Exception('Kesalahan Koneksi Invoice: $e');
+    }
+  }
+
 }

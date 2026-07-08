@@ -8,18 +8,24 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProjectController;
-use App\Http\Controllers\Api\MessageController; // <--- 1. IMPORT CONTROLLER CHAT BARU
+use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\ProjectFileController;
 
 /*
 |--------------------------------------------------------------------------
-| Public Routes (Bisa diakses tanpa login)
+| Public Routes
 |--------------------------------------------------------------------------
 */
 Route::get('/cek-koneksi', [TestController::class, 'index']);
 Route::get('/services', [TestController::class, 'getServices']); 
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+
+// 1. KUNCI PERBAIKAN: Beri nama 'login' pada rute login agar tidak crash saat unauthenticated
+Route::post('/login', [AuthController::class, 'login'])->name('login');
+
+// 2. KUNCI PERBAIKAN: Pindahkan Rute Download PDF ke Public Route agar bisa diakses Browser HP
+Route::get('/invoices/{invoice_id}/pdf', [OrderController::class, 'downloadPdf']);
+
 
 /*
 |--------------------------------------------------------------------------
@@ -28,28 +34,24 @@ Route::post('/login', [AuthController::class, 'login']);
 */
 Route::middleware('auth:sanctum')->group(function () {
     
-    // Ambil data user yang sedang login
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
 
-    // Dashboard Data
     Route::get('/dashboard', [DashboardController::class, 'index']);
-
-    // --- RUTE CHECKOUT / PENGORDERAN ---
     Route::post('/checkout', [OrderController::class, 'store']); 
+    Route::get('/invoices', [OrderController::class, 'index']); // Daftar invoice tetap aman pakai token
 
-    // --- RUTE DATA PROJECT MULTI-ROOM ---
+    // Multi-room projects & chats
     Route::get('/projects', [ProjectController::class, 'index']); 
+    Route::get('/projects/{project_id}/messages', [MessageController::class, 'getMessages']);
+    Route::post('/projects/{project_id}/messages', [MessageController::class, 'sendMessage']);
 
-    // --- RUTE CHAT ROOM PER PROJECT ---
-    Route::get('/projects/{project_id}/messages', [MessageController::class, 'getMessages']); // <--- 2. AMBIL CHAT
-    Route::post('/projects/{project_id}/messages', [MessageController::class, 'sendMessage']); // <--- 3. KIRIM CHAT
-
+    // Project Asset Files
     Route::get('/projects/{project_id}/files', [ProjectFileController::class, 'getFiles']);
-Route::post('/projects/{project_id}/files', [ProjectFileController::class, 'uploadFile']);
+    Route::post('/projects/{project_id}/files', [ProjectFileController::class, 'uploadFile']);
 
-    // --- CRUD SERVICES UNTUK ADMIN ---
+    // CRUD Services Admin
     Route::post('/services', [ServiceController::class, 'store']);
     Route::put('/services/{id}', [ServiceController::class, 'update']);
     Route::delete('/services/{id}', [ServiceController::class, 'destroy']);

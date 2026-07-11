@@ -3,9 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-import '../login_screen.dart';
+import '/login_screen.dart';
 import 'admin_services_screen.dart';
 import 'admin_project_files_screen.dart';
+import 'admin_project_detail_screen.dart'; // Import halaman detail project admin
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -49,7 +50,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _buildAdminHome(),                 // Indeks 0: Home Dashboard Lengkap
       const AdminServicesScreen(),       // Indeks 1: Manage Services
       _buildProjectFilesSelectorPage(),  // Indeks 2: File Vault & Upload Asset
-      _buildAllProjectsControlPage(),    // Indeks 3: Status Proyek & Control
+      _buildAllProjectsControlPage(),    // Indeks 3: Status Proyek & Detail Control
     ];
   }
 
@@ -316,7 +317,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  // --- TAB 3: DAFTAR SEMUA PROYEK ---
+  // --- TAB 3: DAFTAR SEMUA PROYEK (DIARAHKAN KE ADMIN PROJECT DETAIL SCREEN) ---
   Widget _buildAllProjectsControlPage() {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
@@ -346,41 +347,69 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               final String clientName = p['user']?['name'] ?? 'Klien';
               final String status = p['status'] ?? 'pending';
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8)],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(serviceName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: status.toLowerCase() == 'completed' ? Colors.green.withOpacity(0.1) : Colors.amber.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            status.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: status.toLowerCase() == 'completed' ? Colors.green : Colors.amber.shade800,
-                            ),
+              return Material(
+                color: Colors.transparent,
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8)],
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(15),
+                    onTap: () {
+                      // DIUBAH: Mengarah ke AdminProjectDetailScreen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AdminProjectDetailScreen(
+                            project: p,
                           ),
                         ),
-                      ],
+                      ).then((_) {
+                        // Refresh halaman ketika kembali dari detail
+                        setState(() {});
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(15),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(serviceName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: status.toLowerCase() == 'completed' ? Colors.green.withOpacity(0.1) : Colors.amber.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  status.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: status.toLowerCase() == 'completed' ? Colors.green : Colors.amber.shade800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text("Client: $clientName • ID Proyek: #${p['id']}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                              const Icon(Icons.chevron_right, color: Colors.black54, size: 20),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 6),
-                    Text("Client: $clientName • ID Proyek: #${p['id']}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                  ],
+                  ),
                 ),
               );
             },

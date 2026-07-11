@@ -8,7 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Alamat IP server backend Laravel development Anda
-  static const String baseUrl = 'http://10.0.2.2:8000/api'; 
+  static const String baseUrl = 'https://identra-mobile-deploy-production.up.railway.app/api';
+  static const String storageUrl = 'https://identra-mobile-deploy-production.up.railway.app/storage';
 
   // Helper untuk Header Dasar
   Map<String, String> get _headers => {
